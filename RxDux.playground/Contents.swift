@@ -1,22 +1,44 @@
-import RxSwift
+import RxDux
 
 struct State {
-    let foobar: String
+    var message: String
 }
 
-func accumulator(state: State, action: Any) -> State {
-    return State(foobar: "barbaz")
+enum Message {
+    case message(String)
 }
 
-let dispatch = PublishSubject<Any>()
-
-let store = dispatch
-    .scan(State(foobar: "foobar"), accumulator: accumulator)
-
-let subscription = store.subscribe {
-    if case let .next(foobar) = $0 {
-        print(foobar)
+let middleware: Middleware<State> = { dispatch, getState in
+    return { next in
+        return { action in
+            print(action)
+            next(action)
+        }
     }
 }
 
-dispatch.onNext("action")
+let reducer: Reducer = { state, action -> State in
+    var state = state ?? State(message: "foo")
+    guard case let Message.message(message) = action else {
+        return state
+    }
+    state.message = message
+    return state
+}
+
+let store = Store(reducer: reducer, middleware: [middleware])
+let unsubscribe = store.subscribe {
+    let message = $0.message
+    print(message)
+}
+
+store.getState().message
+store.dispatch(Message.message("bar"))
+store.getState().message
+store.dispatch(Message.message("baz"))
+store.getState().message
+store.dispatch(Message.message("qux"))
+store.getState().message
+unsubscribe()
+store.dispatch(Message.message("qux"))
+store.getState().message
